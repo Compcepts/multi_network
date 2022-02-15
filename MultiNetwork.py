@@ -21,7 +21,6 @@ class MultiNetwork(nn.Module):
         super(MultiNetwork, self).__init__()
         self.nets = nets
         self.layers = []
-        print(nets*nodes[-1])
         for l in range(len(nodes)-1):
             if l == 0:
                 self.layers.append(nn.Linear(nodes[l],nodes[l+1]*nets))
@@ -50,9 +49,9 @@ class MultiNetwork(nn.Module):
     def loss(self, y_hat, y):
         loss = 0.0
         losses = []
-        out_size = self.layers[-1].weight.shape[1]/self.nets
+        out_size = self.layers[-1].weight.shape[1]//self.nets
         for m in range(self.nets):
-            curr_loss = self.loss_fn(y_hat[:,(m-1)*out_size:m*out_size],y.to(device))
+            curr_loss = self.loss_fn(y_hat[:,m*out_size:(m+1)*out_size],y.to(device))
             loss += curr_loss
             losses.append(curr_loss.item())
         return loss, losses
@@ -70,11 +69,11 @@ class MultiNetwork(nn.Module):
             w_shape = [0]*2
             w_shape[0] = self.layers[i].weight.shape[0]
             w_shape[1] = self.layers[i].weight.shape[1]
-            w_shape[0] = w_shape[0]/self.nets
+            w_shape[0] = w_shape[0]//self.nets
             if i != 0:
-                w_shape[1] = w_shape[1]/self.nets
+                w_shape[1] = w_shape[1]//self.nets
             layer = nn.Linear(w_shape[1], w_shape[0])
-            layer.weight = self.layers[i].weight[(index-1)*w_shape[0]:index*w_shape[0],:]
-            layer.bias = self.layers[i].bias[(index-1)*w_shape[0]:index*w_shape[0]]
+            layer.weight = self.layers[i].weight[index*w_shape[0]:(index+1)*w_shape[0],:]
+            layer.bias = self.layers[i].bias[index*w_shape[0]:(index+1)*w_shape[0]]
             layers.append(layer)
         return layers
