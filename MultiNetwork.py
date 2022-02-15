@@ -18,9 +18,10 @@ import torch.optim as opt
 #   - device (torch.device) [optional]: tries to train using gpu by default
 class MultiNetwork(nn.Module):
     def __init__(self, nets, nodes, act_f, opt, loss_fn, lr=0.001, device=None):
-        super(Network, self).__init__()
+        super(MultiNetwork, self).__init__()
         self.nets = nets
         self.layers = []
+        print(nets*nodes[-1])
         for l in range(len(nodes)-1):
             if l == 0:
                 self.layers.append(nn.Linear(nodes[l],nodes[l+1]*nets))
