@@ -29,9 +29,8 @@ class MultiNetwork(nn.Module):
         self.act_f = act_f
         self.opt = opt(self.parameters(),lr=lr)
         self.loss_fn = loss_fn
-        if device != None:
-            self.device = device
-        else:
+        self.device = device
+        if self.device == None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def parameters(self):
