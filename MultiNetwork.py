@@ -21,11 +21,11 @@ class MultiNetwork(nn.Module):
         super(MultiNetwork, self).__init__()
         self.nets = nets
         self.layers = []
-        for l in range(len(nodes)-1):
-            if l == 0:
-                self.layers.append(nn.Linear(nodes[l],nodes[l+1]*nets))
-            else:
-                self.layers.append(nn.Linear(nodes[l]*nets,nodes[l+1]*nets))
+        for n in range(self.nets):
+            self.layers.append([])
+            for l in range(len(nodes)-1):
+                self.layers[n].append(nn.Linear(nodes[l],nodes[l+1]))
+        self.out_len = nodes[-1]
         self.act_f = act_f
         self.opt = opt(self.parameters(),lr=lr)
         self.loss_fn = loss_fn
@@ -35,23 +35,33 @@ class MultiNetwork(nn.Module):
 
     def parameters(self):
         p = []
-        for l in self.layers:
+        for n in range(self.nets):
+            for l in self.layers[n]:
+                p.append(l.weight)
+                p.append(l.bias)
+        return p
+
+    def parameters_i(self, i):
+        p = []
+        for l in self.layers[i]:
             p.append(l.weight)
             p.append(l.bias)
         return p
 
     def forward(self, x):
-        out = x.to(self.device)
-        for i, l in enumerate(self.layers):
-            out = self.act_f[i](l.to(self.device)(out))
-        return out
+        y = torch.empty((x.shape[0],self.nets*self.out_len)).to(self.device)
+        for n in range(self.nets):
+            out = x.to(self.device)
+            for i, l in enumerate(self.layers[n]):
+                out = self.act_f[i](l.to(self.device)(out))
+            y[:,n*self.out_len:(n+1)*self.out_len] = out
+        return y
 
     def loss(self, y_hat, y):
         loss = 0.0
         losses = []
-        out_size = self.layers[-1].weight.shape[1]//self.nets
-        for m in range(self.nets):
-            curr_loss = self.loss_fn(y_hat[:,m*out_size:(m+1)*out_size],y.to(device))
+        for n in range(self.nets):
+            curr_loss = self.loss_fn(y_hat[:,n*self.out_len:(n+1)*self.out_len],y.to(self.device))
             loss += curr_loss
             losses.append(curr_loss.item())
         return loss, losses
@@ -64,16 +74,4 @@ class MultiNetwork(nn.Module):
         return loss.item(), ls
 
     def get_network(self, index):
-        layers = []
-        for i, l in enumerate(self.layers):
-            w_shape = [0]*2
-            w_shape[0] = self.layers[i].weight.shape[0]
-            w_shape[1] = self.layers[i].weight.shape[1]
-            w_shape[0] = w_shape[0]//self.nets
-            if i != 0:
-                w_shape[1] = w_shape[1]//self.nets
-            layer = nn.Linear(w_shape[1], w_shape[0])
-            layer.weight = self.layers[i].weight[index*w_shape[0]:(index+1)*w_shape[0],:]
-            layer.bias = self.layers[i].bias[index*w_shape[0]:(index+1)*w_shape[0]]
-            layers.append(layer)
-        return layers
+        return self.layers[index]
